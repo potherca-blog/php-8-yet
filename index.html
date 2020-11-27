@@ -1,0 +1,133 @@
+<!doctype html>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+<link rel="icon" href="https://favicon.potherca.workers.dev/14">
+
+<h1><title>PHP 8 yet?</title></h1>
+<p>The easiest way to see if packages are on PHP 8 yet.</p>
+
+<form class="package-form">
+  <fieldset class="packages-container">
+    <legend>Packages to check</legend>
+  </fieldset>
+
+  <button>Go!</button>
+</form>
+
+<template id="add-package-template">
+  <p>
+    <label>package <input name="package" placeholder="composer/composer"></label>
+    <a href="#" class="add-package" title="Add another package">(+)</a>
+  </p>
+</template>
+
+<footer class="created-by">
+  <p>
+    Source of this page is available on <a href="https://blog.pother.ca/php-8-yet/">Github</a> under a <a rel="license" href="https://spdx.org/licenses/MPL-2.0.html"
+  >Mozilla Public License 2.0</a> &mdash; Created by <a href="https://pother.ca/" class="potherca">Potherca</a>
+  </p>
+</footer>
+
+<style>
+  @import url(https://fonts.googleapis.com/css?family=Droid+Sans|Droid+Sans+Mono);
+  @import url(https://pother.ca/CssBase/css/created-by-potherca.css);
+
+  body {
+    font-family: Droid Sans,sans-serif;
+  }
+
+  code {
+    font-family: Droid Sans Mono,sans-serif;
+  }
+
+  title {
+    display: inline-block;
+  }
+
+  .active button {
+    display: none;
+  }
+</style>
+
+<script>
+  (_ => {
+    const packagesContainer = document.querySelector('.packages-container')
+    const template = document.getElementById('add-package-template');
+
+    const addPackageRow = _ => {
+      if (document.querySelector('.add-package')) {
+        document.querySelector('.add-package').remove()
+      }
+
+      const clone = template.content.cloneNode(true);
+      const link = clone.querySelector('a');
+
+      packagesContainer.appendChild(clone);
+
+      link.addEventListener('click', addPackageRow)
+    }
+
+    const encode = string => string.replace(/[\u00A0-\u9999<>&]/g, i => '&#' + i.charCodeAt(0) + ';');
+
+    window.addEventListener('DOMContentLoaded', (event) => {
+      const params = new URLSearchParams(document.location.search);
+
+      const subject = params.get('subject') || 'php';
+      const version = params.get('version') || '(\\b|^|~)8.0';
+
+      const regex = new RegExp(version);
+
+      const packages = document.location.search.substr(1)
+        .split('&')
+        .filter(value => value.startsWith('package='))
+        .map(value => decodeURIComponent(value.split('=')[1]))
+        .filter(value => value)
+      console.log(packages);
+      if (packages[0] === 'undefined' || packages.length === 0) {
+        addPackageRow()
+        packagesContainer.insertAdjacentHTML('afterbegin', `
+          <p>
+            <label>Dependency <input name="subject" value="${subject}"></label>
+            Should match
+            <label>version <input name="regex" value="${version}"></label>
+            in
+          </p>
+        `);
+      } else {
+        packagesContainer.parentElement.classList.add('active')
+
+        packages.forEach(packageName => {
+          const element = document.createElement('p');
+          packagesContainer.appendChild(element);
+
+          packageName = encode(packageName);
+
+          element.innerHTML = `Checking <code>${packageName}</code> ...`
+
+          fetch('https://packagist.org/packages/'+ packageName +'.json')
+          .then(response => response.ok ? response.json() : Promise.reject(response))
+          .then(data => {
+            const versionConstraint = data.package.versions['dev-master'].require[subject];
+
+            element.innerHTML = ` <strong>${subject}</strong> (<code>${versionConstraint}<code>) for <code>${packageName}<code>`
+
+            if (versionConstraint.match(regex)) {
+              element.innerHTML = ` ✅ ${element.innerHTML} matches <code>${encode(version)}</code>`
+            } else {
+              element.innerHTML = ` ❌ ${element.innerHTML} does not match <code>${encode(version)}</code>`
+            }
+          })
+          .catch(error => {
+            if (error.statusText) {
+              error = error.statusText
+            }
+            element.innerHTML = `🚫 Error fetching <code>${packageName}</code> ${error}`
+          })
+        })
+      }
+    })
+  })()
+</script>
