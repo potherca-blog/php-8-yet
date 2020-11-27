@@ -129,8 +129,8 @@
             }
           })
           .catch(error => {
-            if (error.statusText) {
-              error = `Could not fetch <code>${packageName}</code> ${error.statusText}`
+            if (error.status || error.statusText) {
+              error = `Could not fetch <code>${packageName}</code> ${error.status} ${error.statusText}`
             }
             element.innerHTML = `🚫 ${error}`
           })
