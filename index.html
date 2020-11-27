@@ -11,7 +11,6 @@
 
 <form class="package-form">
   <fieldset class="packages-container">
-    <legend>Packages to check</legend>
   </fieldset>
 
   <button>Go!</button>
@@ -26,7 +25,7 @@
 
 <footer class="created-by">
   <p>
-    Source of this page is available on <a href="https://blog.pother.ca/php-8-yet/">Github</a> under a <a rel="license" href="https://spdx.org/licenses/MPL-2.0.html"
+    Source of this page is available on <a href="https://github.com/potherca-blog/php-8-yet/">Github</a> under a <a rel="license" href="https://spdx.org/licenses/MPL-2.0.html"
   >Mozilla Public License 2.0</a> &mdash; Created by <a href="https://pother.ca/" class="potherca">Potherca</a>
   </p>
 </footer>
@@ -55,62 +54,71 @@
 <script>
   (_ => {
     const packagesContainer = document.querySelector('.packages-container')
-    const template = document.getElementById('add-package-template');
+    const template = document.getElementById('add-package-template')
 
     const addPackageRow = _ => {
       if (document.querySelector('.add-package')) {
         document.querySelector('.add-package').remove()
       }
 
-      const clone = template.content.cloneNode(true);
-      const link = clone.querySelector('a');
+      const clone = template.content.cloneNode(true)
+      const link = clone.querySelector('a')
 
-      packagesContainer.appendChild(clone);
+      packagesContainer.appendChild(clone)
 
       link.addEventListener('click', addPackageRow)
     }
 
-    const encode = string => string.replace(/[\u00A0-\u9999<>&]/g, i => '&#' + i.charCodeAt(0) + ';');
+    const encode = string => string.replace(/[\u00A0-\u9999<>&]/g, i => '&#' + i.charCodeAt(0) + ';')
 
     window.addEventListener('DOMContentLoaded', (event) => {
-      const params = new URLSearchParams(document.location.search);
+      const params = new URLSearchParams(document.location.search)
 
-      const subject = params.get('subject') || 'php';
-      const version = params.get('version') || '(\\b|^|~)8.0';
+      const subject = params.get('subject') || 'php'
+      const version = params.get('version') || '(\\b|^|~)8.0'
+      const branch = params.get('branch') || 'dev-master';
 
-      const regex = new RegExp(version);
+      const regex = new RegExp(version)
 
       const packages = document.location.search.substr(1)
         .split('&')
         .filter(value => value.startsWith('package='))
         .map(value => decodeURIComponent(value.split('=')[1]))
         .filter(value => value)
-      console.log(packages);
+
       if (packages[0] === 'undefined' || packages.length === 0) {
         addPackageRow()
+
         packagesContainer.insertAdjacentHTML('afterbegin', `
           <p>
             <label>Dependency <input name="subject" value="${subject}"></label>
             Should match
             <label>version <input name="regex" value="${version}"></label>
+            for
+            <label>branch <input name="branch" value="${branch}"></label>
             in
           </p>
-        `);
+        `)
       } else {
         packagesContainer.parentElement.classList.add('active')
 
         packages.forEach(packageName => {
-          const element = document.createElement('p');
-          packagesContainer.appendChild(element);
+          const element = document.createElement('p')
+          packagesContainer.appendChild(element)
 
-          packageName = encode(packageName);
+          packageName = encode(packageName)
 
           element.innerHTML = `Checking <code>${packageName}</code> ...`
 
           fetch('https://packagist.org/packages/'+ packageName +'.json')
           .then(response => response.ok ? response.json() : Promise.reject(response))
           .then(data => {
-            const versionConstraint = data.package.versions['dev-master'].require[subject];
+
+            const versionConstraint = data.package.versions[branch].require[subject]
+
+            if ( ! versionConstraint) {
+              throw `Package <code>${packageName}</code> does not require ${subject}`
+            }
 
             element.innerHTML = ` <strong>${subject}</strong> (<code>${versionConstraint}<code>) for <code>${packageName}<code>`
 
@@ -122,9 +130,9 @@
           })
           .catch(error => {
             if (error.statusText) {
-              error = error.statusText
+              error = `Could not fetch <code>${packageName}</code> ${error.statusText}`
             }
-            element.innerHTML = `🚫 Error fetching <code>${packageName}</code> ${error}`
+            element.innerHTML = `🚫 ${error}`
           })
         })
       }
