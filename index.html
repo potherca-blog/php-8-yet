@@ -75,7 +75,7 @@
       const params = new URLSearchParams(document.location.search)
 
       const subject = params.get('subject') || 'php'
-      const version = params.get('version') || '(\\b|^|~)8.0'
+      const version = params.get('version') || '(\\b|^|~)8.0|>=[57]'
       const branch = params.get('branch') || 'dev-master';
 
       const regex = new RegExp(version)
